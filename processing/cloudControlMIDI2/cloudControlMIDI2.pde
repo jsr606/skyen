@@ -6,7 +6,7 @@ MidiBus busA;
 MidiBus busB;
 
 ControlP5 cp5;
-String serialPort = "/dev/ttyACM3";
+String serialPort = "/dev/ttyACM0";
 Serial serial;
 int id;
 
@@ -40,6 +40,8 @@ int currentProgram = 0;
 
 boolean noteIncoming = false, sendingProgram = false;
 float autoBurst = 100;
+
+int presetToSend = 0;
 
 void setup() {
   size(850, 480);
@@ -561,10 +563,16 @@ void sendPreset() {
    12 blackNoise
    'P', 'D', 'M', 'V', 'C', 'I', 'O', 'B', 'A', 'S', 's', 'N', 'n'
    */
-  int preset [] = {7, 128, 1, 14, 12, 10, 37, 244, 0, 128, 188, 24, 28};
+  //int preset [] = {7, 128, 1, 14, 12, 10, 37, 244, 0, 128, 188, 24, 28};
+
+  //int preset [] = {5,229,1,57,89,8,15,246,0,125,147,2,8};
+  
+  //int preset [] = {5,203,1,54,89,8,15,133,134,138,60,0,0};
+  int preset [] = {5,247,1,54,89,8,15,133,133,138,199,2,0};
+
   char presetOrder [] = {'P', 'D', 'M', 'V', 'C', 'I', 'O', 'B', 'A', 'S', 's', 'N', 'n'};
   sendData('P',0);
-  for (int i = 0; i<13; i++) {
+  for (int i = 0; i<14; i++) {
     sendData(presetOrder[i], preset[i]);
     delay(5);
   }

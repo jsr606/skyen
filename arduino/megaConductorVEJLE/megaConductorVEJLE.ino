@@ -35,6 +35,14 @@ int program1 = 1, program2 = 7, programTendency = 30, programChance = 100;
 
 boolean fanActive = false;
 
+byte presets [] [13] = { { 7, 71, 1, 100, 3, 236, 87, 5, 82, 126, 222, 0, 40 },
+  { 5, 71, 1, 100, 3, 243, 10, 5, 82, 126, 182, 3, 11 },
+  { 6, 216, 1, 100, 77, 40, 167, 5, 82, 192, 182, 3, 10},
+  {7,223,9,98,10,244,250,4,5,0,58,0,4},
+{7,223,9,98,65,244,75,4,5,125,204,0,5}
+
+};
+
 // programs
 #define REST 0
 #define STARS 1
@@ -66,9 +74,10 @@ boolean fanActive = false;
 #define FALL 2
 
 int slowness = 4;
-boolean morphFeedback = false;
 
+boolean morphFeedback = false;
 boolean serialUSBFeedback = false;
+boolean generative = false;
 
 void setup() {
 
@@ -107,11 +116,18 @@ void loop() {
 
   tick();
 
+  
+  if (ticked && seconds % 10 == 0) {
+    sendPreset(random(6));
+  }
+  
+
   if (digitalRead(button) == LOW) {
     if (buttonPushed == false) {
       sendPulse();
       buttonPushed = true;
-      morphFeedback = !morphFeedback;
+      //morphFeedback = !morphFeedback;
+      generative = !generative;
     }
   } else {
     buttonPushed = false;
@@ -151,60 +167,60 @@ void loop() {
     }
   }
 
-
-  if (ticked) {
-    if (serialUSBFeedback) Serial.print(seconds);
-    if (serialUSBFeedback) Serial.print("/");
-    if (serialUSBFeedback) Serial.print(nextProgramChange * slowness);
-    if (serialUSBFeedback) Serial.print(".");
-    if (serialUSBFeedback && seconds % 10 == 0) Serial.println();
-    if (seconds >= nextProgramChange * slowness) {
-      int nextPreset = currentPreset;
-      while (currentPreset == nextPreset) {
-        nextPreset = random(21);
+  if (generative) {
+    if (ticked) {
+      if (serialUSBFeedback) Serial.print(seconds);
+      if (serialUSBFeedback) Serial.print("/");
+      if (serialUSBFeedback) Serial.print(nextProgramChange * slowness);
+      if (serialUSBFeedback) Serial.print(".");
+      if (serialUSBFeedback && seconds % 10 == 0) Serial.println();
+      if (seconds >= nextProgramChange * slowness) {
+        int nextPreset = currentPreset;
+        while (currentPreset == nextPreset) {
+          nextPreset = random(21);
+        }
+        preset(nextPreset);
       }
-      preset(nextPreset);
-    }
-    if (seconds % counterActionFrequency == 0) {
-      doCounterAction();
-    }
-
-    int ran = random(1000 * slowness);
-    if (ran < programChance) {
-      if (serialUSBFeedback) Serial.println("time to pick a random program");
-
-      if (ran < programChance / 10) {
-        if (serialUSBFeedback) Serial.println("and time to shuffle the programs");
-        program1 = random(amountOfPrograms);
-        program2 = random(amountOfPrograms);
+      if (seconds % counterActionFrequency == 0) {
+        doCounterAction();
       }
 
-      if (random(100) < programTendency) {
-        if (serialUSBFeedback) Serial.println("picked program 1");
-        programChange(program1);
-      } else {
-        if (serialUSBFeedback) Serial.println("picked program 2");
-        programChange(program2);
+      int ran = random(1000 * slowness);
+      if (ran < programChance) {
+        if (serialUSBFeedback) Serial.println("time to pick a random program");
+
+        if (ran < programChance / 10) {
+          if (serialUSBFeedback) Serial.println("and time to shuffle the programs");
+          program1 = random(amountOfPrograms);
+          program2 = random(amountOfPrograms);
+        }
+
+        if (random(100) < programTendency) {
+          if (serialUSBFeedback) Serial.println("picked program 1");
+          programChange(program1);
+        } else {
+          if (serialUSBFeedback) Serial.println("picked program 2");
+          programChange(program2);
+        }
+
+      }
+
+      if (morphing) {
+        if (lastMorph + morphFreq < millis()) {
+          morph();
+          lastMorph = millis();
+        }
+      }
+
+      if (burstChance > 0) {
+        int ran = random(10000);
+        if (ran < burstChance) {
+          sendData('B', random(30));
+        }
       }
 
     }
-
   }
-
-  if (morphing) {
-    if (lastMorph + morphFreq < millis()) {
-      morph();
-      lastMorph = millis();
-    }
-  }
-
-  if (burstChance > 0) {
-    int ran = random(10000);
-    if (ran < burstChance) {
-      sendData('B', random(30));
-    }
-  }
-
 }
 
 void activateSerialPort(byte port, byte value) {
@@ -356,9 +372,11 @@ void preset(int _preset) {
       break;
     case 16:
       if (fanActive) {
-        if (serialUSBFeedback) Serial.println("fan on");
-        programChange(FAN);
-        sendData('V', random(0, 251));
+        if (random(100) < 5) {
+          if (serialUSBFeedback) Serial.println("fan on");
+          programChange(FAN);
+          sendData('V', random(0, 251));
+        }
         seconds = (nextProgramChange * slowness) - 1;
       }
       break;
@@ -701,5 +719,16 @@ void sendStealthData(byte command, byte value) {
     }
     //delay(2);
     lastSerialCommand = millis();
+  }
+}
+
+void sendPreset(int _thePreset) {
+  char presetOrder [] = {'P', 'D', 'M', 'V', 'C', 'I', 'O', 'B', 'A', 'S', 's', 'N', 'n'};
+  for (int j = 0; j < 2; j++) {
+    for (int i = 0; i < 13; i++) {
+      sendData(presetOrder[i], presets[_thePreset][i]);
+      delay(5);
+    }
+    delay(25);
   }
 }
