@@ -50,13 +50,14 @@ void setup() {
   serial = new Serial(this, serialPort, 115200);
 
   MidiBus.list(); //List all available Midi devices. This will show each device's index and name.
-  busA = new MidiBus(this, "BeatStep [hw:1,0,0]", -1, "busA"); //Create a first new MidiBus attached to the IncommingA Midi input device and the OutgoingA Midi output device. We will name it busA.
-  //busB = new MidiBus(this, "ModelCycles [hw:0,0,0]", -1, "busB"); //Create a second new MidiBus attached to the IncommingB Midi input device and the OutgoingB Midi output device. We will name it busB.
+  busA = new MidiBus(this, "Cable [hw:1,0,0]", -1, "busA"); //Create a first new MidiBus attached to the IncommingA Midi input device and the OutgoingA Midi output device. We will name it busA.
+  busB = new MidiBus(this, "BeatStep [hw:0,0,0]", -1, "busB"); //Create a second new MidiBus attached to the IncommingB Midi input device and the OutgoingB Midi output device. We will name it busB.
   //busB.sendTimestamps(true);
 
   println();
-  println("Inputs on busA");
+  println("Inputs");
   println(busA.attachedInputs()); //Print the devices attached as inputs to busA
+  println(busB.attachedInputs()); //Print the devices attached as inputs to busA
   println();
   //println("Outputs on busB");
   //println(busB.attachedOutputs()); //Prints the devices attached as outpus to busB

@@ -25,7 +25,7 @@ int lastFeedbackSec = -1;
 int counterActionFrequency = 10, counterAction = 0, counterLow = 0, counterHigh = 251;
 int burstChance = -1;
 
-int currentPreset = -1, amountOfPresets = 2;
+int currentPreset = -1;
 
 int program = 2, lastProgram = -1, amountOfPrograms = 9;
 
@@ -35,12 +35,26 @@ int program1 = 1, program2 = 7, programTendency = 30, programChance = 100;
 
 boolean fanActive = false;
 
-byte presets [] [13] = { { 7, 71, 1, 100, 3, 236, 87, 5, 82, 126, 222, 0, 40 },
-  { 5, 71, 1, 100, 3, 243, 10, 5, 82, 126, 182, 3, 11 },
-  { 6, 216, 1, 100, 77, 40, 167, 5, 82, 192, 182, 3, 10},
-  {7,223,9,98,10,244,250,4,5,0,58,0,4},
-{7,223,9,98,65,244,75,4,5,125,204,0,5}
+int amountOfPresets = 17;
 
+byte presets [] [17] = {
+  {2, 24, 1, 3, 14, 198, 0, 0, 1, 139, 58, 100, 6},       //25
+  {5, 5, 1, 54, 89, 236, 160, 133, 132, 128, 170, 0, 0},  //30
+  {7, 223, 9, 98, 65, 244, 75, 4, 5, 125, 204, 0, 5},     //35
+  { 7, 71, 1, 100, 3, 236, 87, 5, 82, 126, 222, 0, 40 },  //40
+  {6, 58, 1, 33, 0, 58, 170, 0, 7, 155, 250, 15, 99},     //45
+  { 6, 216, 1, 100, 77, 40, 167, 5, 82, 192, 182, 3, 10}, //45
+  {7, 223, 9, 98, 10, 244, 250, 4, 5, 0, 58, 0, 4},       //45
+  {7, 85, 1, 4, 91, 10, 130, 0, 0, 126, 58, 0, 7},        //50
+  {6, 58, 1, 54, 89, 58, 170, 133, 132, 155, 250, 2, 9},  //50
+  {6, 58, 1, 54, 89, 32, 96, 133, 132, 130, 250, 2, 9},   //55
+  { 5, 71, 1, 100, 3, 243, 10, 5, 82, 126, 182, 3, 11 },  //60
+  {  4, 250, 1, 0, 77, 10, 130, 0, 0, 126, 58, 0, 7},     //60
+  {5, 247, 1, 54, 89, 8, 15, 133, 132, 138, 199, 0, 32},  //65
+  {6, 85, 1, 4, 91, 10, 130, 0, 0, 126, 58, 0, 7},        //70
+  {6, 0, 1, 4, 0, 10, 91, 60, 98, 126, 58, 0, 7},         //75
+  {4, 195, 1, 96, 100, 84, 0, 2, 0, 128, 25, 0, 2},       //80
+  {3, 0, 1, 6, 6, 58, 170, 0, 7, 128, 13, 0, 0}           //90
 };
 
 // programs
@@ -73,11 +87,12 @@ byte presets [] [13] = { { 7, 71, 1, 100, 3, 236, 87, 5, 82, 126, 222, 0, 40 },
 #define PEAK 1
 #define FALL 2
 
-int slowness = 4;
-
 boolean morphFeedback = false;
 boolean serialUSBFeedback = false;
-boolean generative = false;
+
+int slowness = 25, nudgeSpeed = 3;
+
+boolean generative = true;
 
 void setup() {
 
@@ -108,6 +123,9 @@ void setup() {
   }
 
   delay(100);
+  programChange(FAN);
+  sendData('V', 0);
+  delay(100);
   sendData('R', 0);
   preset(0);
 }
@@ -116,17 +134,17 @@ void loop() {
 
   tick();
 
-  
-  if (ticked && seconds % 10 == 0) {
-    sendPreset(random(6));
-  }
-  
-
   if (digitalRead(button) == LOW) {
     if (buttonPushed == false) {
+      //int p = map(analogRead(pot[1]), 0, 1023, 0, amountOfPresets);
+      //p = constrain(p, 0, 16);
+      //sendPreset(p);
+      //generative = false;
+      //Serial.print("preset ");
+      //Serial.println(p);
+
       sendPulse();
       buttonPushed = true;
-      //morphFeedback = !morphFeedback;
       generative = !generative;
     }
   } else {
@@ -168,6 +186,19 @@ void loop() {
   }
 
   if (generative) {
+
+    if (ticked && seconds % 600 == 0) {
+      //int p = map(analogRead(pot[1]), 0, 1023, 0, amountOfPresets);
+      //int r = random(-8,8);
+      //p = p + r;
+      //p = constrain(p, 0, 16);
+      int p = random(amountOfPresets);
+      sendPreset(p);
+      //Serial.println("generative");
+      //Serial.print("preset selected ");
+      //Serial.println(p);
+    }
+
     if (ticked) {
       if (serialUSBFeedback) Serial.print(seconds);
       if (serialUSBFeedback) Serial.print("/");
@@ -213,8 +244,8 @@ void loop() {
       }
 
       if (burstChance > 0) {
-        int ran = random(10000);
-        if (ran < burstChance) {
+        int ranB = random(10000);
+        if (ranB < burstChance) {
           sendData('B', random(30));
         }
       }
@@ -323,9 +354,12 @@ void preset(int _preset) {
   if (serialUSBFeedback) Serial.println(currentPreset);
 
   int ran = random(3);
+  int ran2 = 0;
   switch (currentPreset) {
     case 0:
       if (serialUSBFeedback) Serial.println("random bits, maybe scrolling");
+
+      programChange(RANDOMBITS);
       fadeInTime = 10;
       sendData('I', fadeInTime);
       fadeOutTime = random(50, 250);
@@ -337,7 +371,6 @@ void preset(int _preset) {
       sendData('s', random(50, 200));
       sendData('A', random(1, 3));
       sendData('B', 4);
-      programChange(RANDOMBITS);
       newMorph(INTENSITY, 100, 0, 50, true, true);
       nextProgramChange = random(5, 8);
       counterActionFrequency = random(5, 10);
@@ -348,27 +381,27 @@ void preset(int _preset) {
     case 11:
       if (serialUSBFeedback) Serial.println("set autoburst off");
       sendData('A', 0);
-      seconds = (nextProgramChange * slowness) - 1;
+      seconds = (nextProgramChange * slowness) - nudgeSpeed;
       break;
     case 12:
       if (serialUSBFeedback) Serial.println("set white noise level");
       sendData('N', random(0, 30));
-      seconds = (nextProgramChange * slowness) - 1;
+      seconds = (nextProgramChange * slowness) - nudgeSpeed;
       break;
     case 13:
       if (serialUSBFeedback) Serial.println("white noise off");
       sendData('N', 0);
-      seconds = (nextProgramChange * slowness) - 1;
+      seconds = (nextProgramChange * slowness) - nudgeSpeed;
       break;
     case 14:
       if (serialUSBFeedback) Serial.println("set black noise level");
       sendData('n', random(0, 30));
-      seconds = (nextProgramChange * slowness) - 1;
+      seconds = (nextProgramChange * slowness) - nudgeSpeed;
       break;
     case 15:
       if (serialUSBFeedback) Serial.println("black noise off");
       sendData('n', 0);
-      seconds = (nextProgramChange * slowness) - 1;
+      seconds = (nextProgramChange * slowness) - nudgeSpeed;
       break;
     case 16:
       if (fanActive) {
@@ -377,35 +410,35 @@ void preset(int _preset) {
           programChange(FAN);
           sendData('V', random(0, 251));
         }
-        seconds = (nextProgramChange * slowness) - 1;
+        seconds = (nextProgramChange * slowness) - nudgeSpeed;
       }
       break;
     case 17:
       if (serialUSBFeedback) Serial.println("fan off");
       programChange(FAN);
-      sendData('V', random(0));
-      seconds = (nextProgramChange * slowness) - 1;
+      sendData('V', 0);
+      seconds = (nextProgramChange * slowness) - nudgeSpeed;
       break;
     case 18:
       if (serialUSBFeedback) Serial.println("maybe scroll?");
       sendData('S', random(125, 129));
       sendData('s', random(250));
-      seconds = (nextProgramChange * slowness) - 1;
+      seconds = (nextProgramChange * slowness) - nudgeSpeed;
       break;
     case 19:
-      int ran = random(5);
+      ran2 = random(5);
       if (serialUSBFeedback) Serial.println("set counter action to");
-      if (ran == 0) counterAction = PROBABILITY;
-      if (ran == 1) counterAction = INTENSITY;
-      if (ran == 2) counterAction = STEPDELAY;
-      if (ran == 3) counterAction = FADEIN;
-      if (ran == 4) counterAction = FADEOUT;
-      seconds = (nextProgramChange * slowness) - 1;
+      if (ran2 == 0) counterAction = PROBABILITY;
+      if (ran2 == 1) counterAction = INTENSITY;
+      if (ran2 == 2) counterAction = STEPDELAY;
+      if (ran2 == 3) counterAction = FADEIN;
+      if (ran2 == 4) counterAction = FADEOUT;
+      seconds = (nextProgramChange * slowness) - nudgeSpeed;
       break;
     case 20:
       if (serialUSBFeedback) Serial.println("set autoburst on");
       sendData('A', random(250));
-      seconds = (nextProgramChange * slowness) - 1;
+      seconds = (nextProgramChange * slowness) - nudgeSpeed;
       break;
 
     //Serial.println("nudge fadein time");
