@@ -35,21 +35,22 @@ int program1 = 1, program2 = 7, programTendency = 30, programChance = 100;
 
 boolean fanActive = false;
 
-int amountOfPresets = 17;
+int amountOfPresets = 9;
+int lastPotReading = -1, potError = 3;
 
 byte presets [] [17] = {
   {2, 24, 1, 3, 14, 198, 0, 0, 1, 139, 58, 100, 6},       //25
   {5, 5, 1, 54, 89, 236, 160, 133, 132, 128, 170, 0, 0},  //30
   {7, 223, 9, 98, 65, 244, 75, 4, 5, 125, 204, 0, 5},     //35
-  { 7, 71, 1, 100, 3, 236, 87, 5, 82, 126, 222, 0, 40 },  //40
+  {7, 71, 1, 100, 3, 236, 87, 5, 82, 126, 222, 0, 40 },   //40
   {6, 58, 1, 33, 0, 58, 170, 0, 7, 155, 250, 15, 99},     //45
-  { 6, 216, 1, 100, 77, 40, 167, 5, 82, 192, 182, 3, 10}, //45
+  {6, 216, 1, 100, 77, 40, 167, 5, 82, 192, 182, 3, 10},  //45
   {7, 223, 9, 98, 10, 244, 250, 4, 5, 0, 58, 0, 4},       //45
   {7, 85, 1, 4, 91, 10, 130, 0, 0, 126, 58, 0, 7},        //50
   {6, 58, 1, 54, 89, 58, 170, 133, 132, 155, 250, 2, 9},  //50
   {6, 58, 1, 54, 89, 32, 96, 133, 132, 130, 250, 2, 9},   //55
-  { 5, 71, 1, 100, 3, 243, 10, 5, 82, 126, 182, 3, 11 },  //60
-  {  4, 250, 1, 0, 77, 10, 130, 0, 0, 126, 58, 0, 7},     //60
+  {5, 71, 1, 100, 3, 243, 10, 5, 82, 126, 182, 3, 11 },   //60
+  {4, 250, 1, 0, 77, 10, 130, 0, 0, 126, 58, 0, 7},       //60
   {5, 247, 1, 54, 89, 8, 15, 133, 132, 138, 199, 0, 32},  //65
   {6, 85, 1, 4, 91, 10, 130, 0, 0, 126, 58, 0, 7},        //70
   {6, 0, 1, 4, 0, 10, 91, 60, 98, 126, 58, 0, 7},         //75
@@ -123,9 +124,11 @@ void setup() {
   }
 
   delay(100);
+  // turn off fans
   programChange(FAN);
   sendData('V', 0);
   delay(100);
+  // set random seed from id 0
   sendData('R', 0);
   preset(0);
 }
@@ -187,7 +190,7 @@ void loop() {
 
   if (generative) {
 
-    if (ticked && seconds % 600 == 0) {
+    if (ticked && seconds % 400 == 0) {
       //int p = map(analogRead(pot[1]), 0, 1023, 0, amountOfPresets);
       //int r = random(-8,8);
       //p = p + r;
@@ -205,10 +208,23 @@ void loop() {
       if (serialUSBFeedback) Serial.print(nextProgramChange * slowness);
       if (serialUSBFeedback) Serial.print(".");
       if (serialUSBFeedback && seconds % 10 == 0) Serial.println();
+
+      if (random(10000) < 10) {
+        if (random(100) < 10) {
+        if (serialUSBFeedback) Serial.println("fan on");
+          programChange(FAN);
+          sendData('V', random(100, 251));
+        } else {
+          if (serialUSBFeedback) Serial.println("fan off");
+          programChange(FAN);
+          sendData('V', 0);
+        }
+      }
+
       if (seconds >= nextProgramChange * slowness) {
         int nextPreset = currentPreset;
         while (currentPreset == nextPreset) {
-          nextPreset = random(21);
+          nextPreset = random(amountOfPresets);
         }
         preset(nextPreset);
       }
@@ -226,13 +242,15 @@ void loop() {
           program2 = random(amountOfPrograms);
         }
 
-        if (random(100) < programTendency) {
+        /*
+          if (random(100) < programTendency) {
           if (serialUSBFeedback) Serial.println("picked program 1");
           programChange(program1);
-        } else {
+          } else {
           if (serialUSBFeedback) Serial.println("picked program 2");
           programChange(program2);
-        }
+          }
+        */
 
       }
 
@@ -251,6 +269,17 @@ void loop() {
       }
 
     }
+  } else {
+    int potReading = analogRead(pot[1]);
+    if (potReading < lastPotReading - potError || potReading > lastPotReading + potError) {
+
+      // potentiometer has been changed, change the program
+
+      int p = map(potReading, 0, 1023, 0, amountOfPresets);
+      programChange(p);
+      lastPotReading = analogRead(pot[1]);
+    }
+
   }
 }
 
@@ -355,7 +384,13 @@ void preset(int _preset) {
 
   int ran = random(3);
   int ran2 = 0;
+
+  // turn off fan, just because its annoying
+  programChange(FAN);
+  sendData('V', 0);
+
   switch (currentPreset) {
+
     case 0:
       if (serialUSBFeedback) Serial.println("random bits, maybe scrolling");
 
@@ -378,54 +413,38 @@ void preset(int _preset) {
       counterHigh = 250;
       counterLow = 5;
       break;
-    case 11:
+    case 1:
       if (serialUSBFeedback) Serial.println("set autoburst off");
       sendData('A', 0);
       seconds = (nextProgramChange * slowness) - nudgeSpeed;
       break;
-    case 12:
+    case 2:
       if (serialUSBFeedback) Serial.println("set white noise level");
       sendData('N', random(0, 30));
       seconds = (nextProgramChange * slowness) - nudgeSpeed;
       break;
-    case 13:
+    case 3:
       if (serialUSBFeedback) Serial.println("white noise off");
       sendData('N', 0);
       seconds = (nextProgramChange * slowness) - nudgeSpeed;
       break;
-    case 14:
+    case 4:
       if (serialUSBFeedback) Serial.println("set black noise level");
       sendData('n', random(0, 30));
       seconds = (nextProgramChange * slowness) - nudgeSpeed;
       break;
-    case 15:
+    case 5:
       if (serialUSBFeedback) Serial.println("black noise off");
       sendData('n', 0);
       seconds = (nextProgramChange * slowness) - nudgeSpeed;
       break;
-    case 16:
-      if (fanActive) {
-        if (random(100) < 5) {
-          if (serialUSBFeedback) Serial.println("fan on");
-          programChange(FAN);
-          sendData('V', random(0, 251));
-        }
-        seconds = (nextProgramChange * slowness) - nudgeSpeed;
-      }
-      break;
-    case 17:
-      if (serialUSBFeedback) Serial.println("fan off");
-      programChange(FAN);
-      sendData('V', 0);
-      seconds = (nextProgramChange * slowness) - nudgeSpeed;
-      break;
-    case 18:
+    case 6:
       if (serialUSBFeedback) Serial.println("maybe scroll?");
       sendData('S', random(125, 129));
       sendData('s', random(250));
       seconds = (nextProgramChange * slowness) - nudgeSpeed;
       break;
-    case 19:
+    case 7:
       ran2 = random(5);
       if (serialUSBFeedback) Serial.println("set counter action to");
       if (ran2 == 0) counterAction = PROBABILITY;
@@ -435,7 +454,7 @@ void preset(int _preset) {
       if (ran2 == 4) counterAction = FADEOUT;
       seconds = (nextProgramChange * slowness) - nudgeSpeed;
       break;
-    case 20:
+    case 8:
       if (serialUSBFeedback) Serial.println("set autoburst on");
       sendData('A', random(250));
       seconds = (nextProgramChange * slowness) - nudgeSpeed;
